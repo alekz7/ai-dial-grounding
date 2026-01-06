@@ -78,32 +78,43 @@ USER_PROMPT = """## RAG CONTEXT:
 
 def retrieve_context(user_question: str) -> list[dict[str, Any]]:
     """Extract search parameters from user query and retrieve matching users."""
-    #TODO:
-    # 1. Create PydanticOutputParser with `pydantic_object=SearchRequests` as `parser`
-    # 2. Create messages array with:
-    #       - use SystemMessagePromptTemplate and from template generate system message from QUERY_ANALYSIS_PROMPT
-    #       - user message
-    # 3. Generate `prompt`: `ChatPromptTemplate.from_messages(messages=messages).partial(format_instructions=parser.get_format_instructions())`
-    # 4. Invoke it: `(prompt | llm_client | parser).invoke({})` as `search_requests: SearchRequests` (you are using LCEL)
-    # 5. If `search_requests` has `search_request_parameters`:
-    #       - create `requests_dict`
-    #       - iterate through searched parameters and:
-    #           - add to `requests_dict` the `search_request.search_field.value` as key and `search_request.search_value` as value
-    #       - print `requests_dict`
-    #       - search users (**requests_dict) with `user_client`
-    #       - return users that you found
-    # 6. Otherwise print 'No specific search parameters found!' and return empty array
-    raise NotImplementedError
+    parser = PydanticOutputParser(pydantic_object=SearchRequests)
+
+    messages = [
+        SystemMessagePromptTemplate.from_template(template=QUERY_ANALYSIS_PROMPT),
+        HumanMessage(content=user_question),
+    ]
+
+    prompt = ChatPromptTemplate.from_messages(messages=messages).partial(
+        format_instructions=parser.get_format_instructions(),
+    )
+
+    search_requests: SearchRequests = (prompt | llm_client | parser).invoke({})
+
+    if search_requests.search_request_parameters:
+        requests_dict = {}
+        for search_request in search_requests.search_request_parameters:
+            requests_dict[search_request.search_field.value] = search_request.search_value
+
+        print(f"Searching with parameters: {requests_dict}")
+        return user_client.search_users(**requests_dict)
+
+    print("No specific search parameters found!")
+    return []
 
 
 def augment_prompt(user_question: str, context: list[dict[str, Any]]) -> str:
     """Combine user query with retrieved context into a formatted prompt."""
-    #TODO:
-    # 1. Prepare context from users JSONs in the same way as in `no_grounding.py` `join_context` method (collect as one string)
-    # 2. Make augmentation for USER_PROMPT
-    # 3. print augmented prompt
-    # 3. return augmented prompt
-    raise NotImplementedError
+    context_str = ""
+    for user in context:
+        context_str += f"User:\n"
+        for key, value in user.items():
+            context_str += f"  {key}: {value}\n"
+        context_str += "\n"
+
+    augmented_prompt = USER_PROMPT.format(context=context_str, query=user_question)
+    print(augmented_prompt)
+    return augmented_prompt
 
 
 def generate_answer(augmented_prompt: str) -> str:

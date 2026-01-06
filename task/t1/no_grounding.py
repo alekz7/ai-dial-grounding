@@ -60,14 +60,13 @@ class TokenTracker:
 # 2. Create TokenTracker
 
 def join_context(context: list[dict[str, Any]]) -> str:
-    #TODO:
-    # You cannot pass raw JSON with user data to LLM (" sign), collect it in just simple string or markdown.
-    # You need to collect it in such way:
-    # User:
-    #   name: John
-    #   surname: Doe
-    #   ...
-    raise NotImplementedError
+    context_str = ""
+    for user in context:
+        context_str += f"User:\n"
+        for key, value in user.items():
+            context_str += f"  {key}: {value}\n"
+        context_str += "\n"
+    return context_str
 
 
 async def generate_response(system_prompt: str, user_message: str) -> str:
